@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deskflow-config
+  namespace: default
+  labels:
+    app: deskflow
+data:
+  # Backend API endpoint for frontend
+  BACKEND_URL: "http://deskflow-backend:5000"
