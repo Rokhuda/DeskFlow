@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model Ticket {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  priority    Priority
+  status      Status   @default(Open)
+  createdAt   DateTime @default(now())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+}
+
+enum Role {
+  Employee
+  Admin
+}
+
+enum Priority {
+  Low
+  Medium
+  High
+}
+
+enum Status {
+  Open
+  In Progress
+  Resolved
+}
