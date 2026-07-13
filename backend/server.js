@@ -1,3 +1,12 @@
+/**
+ * DeskFlow Backend API Server
+ * 
+ * Internal IT service portal backend built with Express.js and Prisma ORM
+ * - Handles user authentication via JWT
+ * - Manages service tickets with role-based access control
+ * - Provides OpenAPI/Swagger documentation
+ */
+
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -7,14 +16,17 @@ const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 
+// Initialize Prisma client for database operations
 const prisma = new PrismaClient();
 const app = express();
 const port = process.env.PORT || 5000;
 const jwtSecret = process.env.JWT_SECRET || 'deskflow-secret';
 
+// Enable CORS for cross-origin requests and JSON parsing middleware
 app.use(cors());
 app.use(express.json());
 
+// Configure OpenAPI/Swagger documentation
 const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: '3.0.0',
@@ -32,12 +44,22 @@ const swaggerSpec = swaggerJSDoc({
   apis: []
 });
 
+// Serve API documentation at /api-docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+/**
+ * Create JWT token for authenticated user
+ * @param {Object} user - User object with id and role
+ * @returns {string} JWT token valid for 8 hours
+ */
 function createToken(user) {
   return jwt.sign({ userId: user.id, role: user.role }, jwtSecret, { expiresIn: '8h' });
 }
 
+/**
+ * Middleware: Verify JWT token from Authorization header
+ * Extracts and validates bearer token, attaches decoded user info to request
+ */
 function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -54,6 +76,11 @@ function authenticate(req, res, next) {
   }
 }
 
+/**
+ * Middleware factory: Verify user has specific role
+ * @param {string} role - Required role (e.g., 'Admin', 'Employee')
+ * @returns {Function} Express middleware function
+ */
 function authorizeRole(role) {
   return (req, res, next) => {
     if (req.user.role !== role) {
@@ -63,6 +90,10 @@ function authorizeRole(role) {
   };
 }
 
+/**
+ * Database seeding: Create default admin and employee users for testing
+ * Uses upsert to avoid duplicates on subsequent runs
+ */
 async function seedUsers() {
   const admin = await prisma.user.upsert({
     where: { email: 'admin@deskflow.local' },
@@ -89,10 +120,26 @@ async function seedUsers() {
   return { admin, employee };
 }
 
+// ==================== Health Check Endpoint ====================
+
+/**
+ * GET /api/health
+ * Returns server status
+ */
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'DeskFlow API is running' });
 });
 
+// ==================== Authentication Endpoints ====================
+
+/**
+ * POST /api/auth/login
+ * Authenticate user with email and password
+ * Returns JWT token and user information
+ * 
+ * Body: { email: string, password: string }
+ * Response: { token: string, user: { id, name, email, role } }
+ */
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -117,6 +164,16 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
+// ==================== Ticket Endpoints ====================
+
+/**
+ * POST /api/tickets
+ * Create new service ticket (Employees only)
+ * Requires: Authentication, Employee role
+ * 
+ * Body: { title: string, description: string, priority: "Low|Medium|High" }
+ * Response: Created ticket object with author info
+ */
 app.post('/api/tickets', authenticate, authorizeRole('Employee'), async (req, res) => {
   const { title, description, priority } = req.body;
 
@@ -143,6 +200,13 @@ app.post('/api/tickets', authenticate, authorizeRole('Employee'), async (req, re
   res.status(201).json(ticket);
 });
 
+/**
+ * GET /api/tickets
+ * Retrieve tickets (role-based filtering)
+ * - Employees: See only their own tickets
+ * - Admins: See all tickets
+ * Requires: Authentication
+ */
 app.get('/api/tickets', authenticate, async (req, res) => {
   if (req.user.role === 'Employee') {
     const tickets = await prisma.ticket.findMany({
@@ -160,6 +224,15 @@ app.get('/api/tickets', authenticate, async (req, res) => {
   res.json(tickets);
 });
 
+/**
+ * PUT /api/tickets/:id
+ * Update ticket status (Admins only)
+ * Requires: Authentication, Admin role
+ * 
+ * Params: { id: ticket ID }
+ * Body: { status: "Open|In Progress|Resolved" }
+ * Response: Updated ticket object
+ */
 app.put('/api/tickets/:id', authenticate, authorizeRole('Admin'), async (req, res) => {
   const { status } = req.body;
   const validStatuses = ['Open', 'In Progress', 'Resolved'];
@@ -177,6 +250,12 @@ app.put('/api/tickets/:id', authenticate, authorizeRole('Admin'), async (req, re
   res.json(ticket);
 });
 
+// ==================== Production Configuration ====================
+
+/**
+ * In production, serve the built React frontend as static files
+ * Fall back to index.html for SPA routing
+ */
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.resolve(__dirname, '..', 'frontend', 'dist')));
   app.get('*', (req, res) => {
@@ -184,6 +263,11 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// ==================== Server Initialization ====================
+
+/**
+ * Start the server: Seed database with default users, then listen for requests
+ */
 seedUsers()
   .then(() => {
     app.listen(port, () => {

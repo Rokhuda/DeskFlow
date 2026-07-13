@@ -1,10 +1,23 @@
+/**
+ * DeskFlow Frontend - React Application
+ * 
+ * Main component for the Internal IT Service Portal
+ * - Handles user authentication (login)
+ * - Employee view: Create and view personal tickets
+ * - Admin view: View and update status of all tickets
+ * - Manages state and API communication
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
+// Constants for dropdown options
 const statusOptions = ['Open', 'In Progress', 'Resolved'];
 const priorityOptions = ['Low', 'Medium', 'High'];
 
 function App() {
+  // ==================== Session State ====================
+  // Session stored in localStorage to persist across page reloads
   const [session, setSession] = useState(() => {
     try {
       const stored = localStorage.getItem('deskflow-session');
@@ -13,17 +26,25 @@ function App() {
       return null;
     }
   });
+
+  // ==================== Login Form State ====================
   const [email, setEmail] = useState('employee@deskflow.local');
   const [password, setPassword] = useState('password123');
   const [role, setRole] = useState('Employee');
+
+  // ==================== Ticket Form State ====================
   const [form, setForm] = useState({ title: '', description: '', priority: 'Medium' });
+
+  // ==================== UI State ====================
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // Determine if current user is admin
   const isAdmin = session?.user?.role === 'Admin';
 
+  // Memoized auth headers for API requests
   const authHeaders = useMemo(() => {
     if (!session?.token) {
       return {};
@@ -31,6 +52,12 @@ function App() {
     return { Authorization: `Bearer ${session.token}` };
   }, [session]);
 
+  // ==================== Effects ====================
+
+  /**
+   * Load tickets when user logs in
+   * Fetches user's own tickets (Employee) or all tickets (Admin)
+   */
   useEffect(() => {
     if (!session?.token) {
       return;
@@ -51,6 +78,12 @@ function App() {
     loadTickets();
   }, [session, authHeaders]);
 
+  // ==================== Event Handlers ====================
+
+  /**
+   * Handle user login
+   * Sends credentials to backend, stores session + JWT token in localStorage
+   */
   async function handleLogin(event) {
     event.preventDefault();
     setLoading(true);
@@ -70,6 +103,10 @@ function App() {
     }
   }
 
+  /**
+   * Handle new ticket creation (Employees only)
+   * Validates form input and creates ticket via API
+   */
   async function handleCreateTicket(event) {
     event.preventDefault();
     setError('');
@@ -93,6 +130,10 @@ function App() {
     }
   }
 
+  /**
+   * Handle ticket status update (Admins only)
+   * Updates ticket status and re-renders the ticket list
+   */
   async function handleStatusChange(ticketId, nextStatus) {
     try {
       const response = await axios.put(`/api/tickets/${ticketId}`, { status: nextStatus }, { headers: authHeaders });
@@ -103,14 +144,21 @@ function App() {
     }
   }
 
+  /**
+   * Handle user logout
+   * Clears session from localStorage and state
+   */
   function logout() {
     localStorage.removeItem('deskflow-session');
     setSession(null);
     setMessage('Signed out');
   }
 
+  // ==================== Render ====================
+
   return (
     <div className="app-shell">
+      {/* Header with logo and logout button */}
       <header className="hero">
         <div>
           <p className="eyebrow">Internal IT Service Portal</p>
@@ -124,10 +172,13 @@ function App() {
         )}
       </header>
 
+      {/* Alert messages for errors and success */}
       {error && <div className="alert alert-error">{error}</div>}
-      {message ; <div className="alert alert-success">{message}</div>}
+      {message && <div className="alert alert-success">{message}</div>}
 
+      {/* Conditional rendering: Login form OR Dashboard */}
       {!session ? (
+        // ==================== Login Screen ====================
         <section className="card login-card">
           <h2>Sign in</h2>
           <form onSubmit={handleLogin}>
@@ -153,8 +204,10 @@ function App() {
           <p className="hint">Demo credentials: employee@deskflow.local / password123 or admin@deskflow.local / password123</p>
         </section>
       ) : (
+        // ==================== Dashboard (Role-based) ====================
         <div className="dashboard-grid">
           {isAdmin ? (
+            // ==================== Admin View: All Tickets ====================
             <section className="card">
               <div className="section-heading">
                 <h2>Admin overview</h2>
@@ -170,6 +223,7 @@ function App() {
                     <p>{ticket.description}</p>
                     <div className="ticket-footer">
                       <span className="pill">{ticket.priority}</span>
+                      {/* Status dropdown - Admins can change status */}
                       <select value={ticket.status} onChange={(event) => handleStatusChange(ticket.id, event.target.value)}>
                         {statusOptions.map((option) => (
                           <option key={option} value={option}>
@@ -183,7 +237,9 @@ function App() {
               </div>
             </section>
           ) : (
+            // ==================== Employee View: Create & View Tickets ====================
             <>
+              {/* Left panel: Create new ticket */}
               <section className="card">
                 <div className="section-heading">
                   <h2>Submit a new request</h2>
@@ -214,6 +270,7 @@ function App() {
                 </form>
               </section>
 
+              {/* Right panel: View own tickets */}
               <section className="card">
                 <div className="section-heading">
                   <h2>Your requests</h2>
