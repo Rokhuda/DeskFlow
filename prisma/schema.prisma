@@ -41,6 +41,6 @@ enum Priority {
 
 enum Status {
   Open
-  In Progress
+  InProgress
   Resolved
 }

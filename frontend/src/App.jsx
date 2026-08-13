@@ -12,7 +12,16 @@ import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
 // Constants for dropdown options
-const statusOptions = ['Open', 'In Progress', 'Resolved'];
+const statusOptions = [
+  { value: 'Open', label: 'Open' },
+  { value: 'InProgress', label: 'In Progress' },
+  { value: 'Resolved', label: 'Resolved' }
+];
+const statusLabels = {
+  Open: 'Open',
+  InProgress: 'In Progress',
+  Resolved: 'Resolved'
+};
 const priorityOptions = ['Low', 'Medium', 'High'];
 
 function App() {
@@ -226,8 +235,8 @@ function App() {
                       {/* Status dropdown - Admins can change status */}
                       <select value={ticket.status} onChange={(event) => handleStatusChange(ticket.id, event.target.value)}>
                         {statusOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
+                          <option key={option.value} value={option.value}>
+                            {option.label}
                           </option>
                         ))}
                       </select>
@@ -281,7 +290,7 @@ function App() {
                     <article key={ticket.id} className="ticket-item">
                       <div className="ticket-meta">
                         <strong>{ticket.title}</strong>
-                        <span>{ticket.status}</span>
+                        <span>{statusLabels[ticket.status] || ticket.status}</span>
                       </div>
                       <p>{ticket.description}</p>
                       <div className="ticket-footer">

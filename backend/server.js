@@ -235,10 +235,10 @@ app.get('/api/tickets', authenticate, async (req, res) => {
  */
 app.put('/api/tickets/:id', authenticate, authorizeRole('Admin'), async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['Open', 'In Progress', 'Resolved'];
+  const validStatuses = ['Open', 'InProgress', 'Resolved'];
 
   if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Status must be Open, In Progress, or Resolved' });
+    return res.status(400).json({ error: 'Status must be Open, InProgress, or Resolved' });
   }
 
   const ticket = await prisma.ticket.update({
