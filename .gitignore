@@ -1,44 +1,23 @@
-# Node modules
+# Node
 node_modules/
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
 
-# Environment variables
+# Environment
 .env
 .env.local
-.env.*.local
-
-# Build outputs
-dist/
-frontend/dist/
-build/
-*.tsbuildinfo
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+.env.*
 
 # Prisma
-/dev.db
-prisma/dev.db-journal
+prisma/dev.db
+prisma/migrations/
 
-# Logs
-logs/
-*.log
+# Build and logs
+dist/
+npm-run-dev.log
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
 
 # OS
-.DS_Store
 Thumbs.db
-
-# Docker
-.dockerignore
-
-# Kubernetes
-kube-config.yaml
-kubeconfig
