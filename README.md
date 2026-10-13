@@ -1,54 +1,46 @@
 # DeskFlow
 
-DeskFlow is a lightweight internal IT service portal designed for small teams to report and track IT issues. It provides a simple React frontend and an Express backend with a SQLite database managed by Prisma.
+DeskFlow is a lightweight IT service desk for small teams. Employees can report issues and follow progress, while administrators can review the team queue and update request statuses.
 
-What the program can do
+## Showcase
 
-- Employee login and authentication (JWT-based demo auth)
-- Create and submit service tickets with title, description and priority
-- View personal tickets (employees) or all tickets (admins)
-- Admin dashboard to update ticket status (Open, InProgress, Resolved)
-- Role-based access control (Employee vs Admin)
-- OpenAPI/Swagger documentation available at /api-docs
-- Seeds demo accounts on first run for quick testing
+Run the app locally and open [http://localhost:5173](http://localhost:5173). The development server creates demo accounts and, when the employee account has no requests yet, a small set of sample tickets. Use the demo buttons on the sign-in screen to try each role:
 
-Quick run (development)
+- **Employee:** submit a request and track its status.
+- **Admin:** review all requests and move them between Open, In Progress, and Resolved.
+- **Demo password:** `password123`
 
-Prerequisites
-- Node.js 20+ and npm
-- Git
+## Run locally
 
-1. Install root dependencies:
+Prerequisites: Node.js 20+ and npm.
 
+1. Install dependencies:
+
+   ```sh
    npm install
-
-2. Install frontend dependencies:
-
    npm --prefix frontend install
+   ```
 
-3. Create the SQLite database and apply Prisma migrations:
+2. Create your local environment file:
 
+   ```sh
+   cp .env.example .env
+   ```
+
+3. Create the local SQLite database and apply the Prisma migration:
+
+   ```sh
    npm run prisma:migrate
+   ```
 
-   This creates prisma/dev.db and the Prisma client.
+4. Start the backend and frontend:
 
-4. Start backend and frontend together:
-
+   ```sh
    npm run dev
+   ```
 
-5. Open the app in your browser:
+5. Open the app at [http://localhost:5173](http://localhost:5173).
 
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:5000
-   - API docs (Swagger): http://localhost:5000/api-docs
+The API is available at [http://localhost:5000](http://localhost:5000), its health check is at `/api/health`, and the API reference is at [http://localhost:5000/api-docs](http://localhost:5000/api-docs).
 
-Demo accounts (seeded automatically on first run)
-
-- Employee: employee@deskflow.local / password123
-- Admin: admin@deskflow.local / password123
-
-Notes
-
-- If you need to reset the local DB, remove prisma/dev.db and re-run 
-pm run prisma:migrate.
-- Keep secrets out of source control: place local secrets in a .env file (ignored by .gitignore).
+To build the frontend for deployment, run `npm run build`. This project is configured as a demo; before using it with real accounts, replace the demo authentication and seed-account setup with production-grade user and password management. Never use the demo credentials or development secret with real users.

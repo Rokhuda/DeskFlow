@@ -120,6 +120,47 @@ async function seedUsers() {
   return { admin, employee };
 }
 
+async function seedDemoTickets(employee) {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
+  const ticketCount = await prisma.ticket.count({ where: { authorId: employee.id } });
+  if (ticketCount > 0) {
+    return;
+  }
+
+  const now = Date.now();
+  await prisma.ticket.createMany({
+    data: [
+      {
+        title: 'Laptop setup for a new starter',
+        description: 'A new teammate starts Monday. Please prepare a laptop with the standard development tools.',
+        priority: 'Medium',
+        status: 'InProgress',
+        authorId: employee.id,
+        createdAt: new Date(now - 1000 * 60 * 60 * 5)
+      },
+      {
+        title: 'Can’t connect to the office Wi-Fi',
+        description: 'The network drops every few minutes on the second floor. Other devices seem to be affected too.',
+        priority: 'High',
+        status: 'Open',
+        authorId: employee.id,
+        createdAt: new Date(now - 1000 * 60 * 60 * 26)
+      },
+      {
+        title: 'Request access to the design drive',
+        description: 'I need read access to the shared design folder for the upcoming project handoff.',
+        priority: 'Low',
+        status: 'Resolved',
+        authorId: employee.id,
+        createdAt: new Date(now - 1000 * 60 * 60 * 72)
+      }
+    ]
+  });
+}
+
 // ==================== Health Check Endpoint ====================
 
 /**
@@ -269,6 +310,7 @@ if (process.env.NODE_ENV === 'production') {
  * Start the server: Seed database with default users, then listen for requests
  */
 seedUsers()
+  .then(({ employee }) => seedDemoTickets(employee))
   .then(() => {
     app.listen(port, () => {
       console.log(`DeskFlow server running on http://localhost:${port}`);
