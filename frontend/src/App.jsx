@@ -25,6 +25,30 @@ const statusLabels = {
 const priorityOptions = ['Low', 'Medium', 'High'];
 const filters = ['All', 'Open', 'InProgress', 'Resolved'];
 
+function dateInputValue(date) {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function formatDuration(totalSeconds) {
+  if (totalSeconds < 60) {
+    return 'Less than a minute';
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+  return `${minutes}m`;
+}
+
 function App() {
   // ==================== Session State ====================
   // Session stored in localStorage to persist across page reloads
@@ -49,6 +73,16 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState('');
   const [ticketFilter, setTicketFilter] = useState('All');
+  const [workspaceView, setWorkspaceView] = useState('tickets');
+  const [reportFrom, setReportFrom] = useState(() => {
+    const from = new Date();
+    from.setDate(from.getDate() - 29);
+    return dateInputValue(from);
+  });
+  const [reportTo, setReportTo] = useState(() => dateInputValue(new Date()));
+  const [resolutionReport, setResolutionReport] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -94,6 +128,47 @@ function App() {
 
     loadTickets();
   }, [session, authHeaders]);
+
+  useEffect(() => {
+    if (!session?.token || !isAdmin || workspaceView !== 'report') {
+      return undefined;
+    }
+
+    if (!reportFrom || !reportTo || reportFrom > reportTo) {
+      setReportError('Choose a valid date range. The start date must be on or before the end date.');
+      setResolutionReport(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadReport = async () => {
+      setReportLoading(true);
+      setReportError('');
+      try {
+        const response = await axios.get('/api/reports/resolutions', {
+          headers: authHeaders,
+          params: { from: reportFrom, to: reportTo }
+        });
+        if (!cancelled) {
+          setResolutionReport(response.data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setReportError(err.response?.data?.error || 'Unable to load the resolution report');
+          setResolutionReport(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setReportLoading(false);
+        }
+      }
+    };
+
+    loadReport();
+    return () => {
+      cancelled = true;
+    };
+  }, [session, isAdmin, workspaceView, reportFrom, reportTo, authHeaders]);
 
   // ==================== Event Handlers ====================
 
@@ -182,8 +257,37 @@ function App() {
     localStorage.removeItem('deskflow-session');
     setSession(null);
     setTickets([]);
+    setResolutionReport(null);
+    setWorkspaceView('tickets');
     setError('');
     setMessage('Signed out');
+  }
+
+  function downloadReport() {
+    if (!resolutionReport?.resolutions.length) {
+      return;
+    }
+
+    const csvCell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const rows = [
+      ['Ticket ID', 'Title', 'Requester', 'Priority', 'Created at', 'Resolved at', 'Resolution time'],
+      ...resolutionReport.resolutions.map((resolution) => [
+        resolution.ticket.id,
+        resolution.ticket.title,
+        resolution.ticket.author.name,
+        resolution.ticket.priority,
+        resolution.ticket.createdAt,
+        resolution.resolvedAt,
+        formatDuration(resolution.resolutionSeconds)
+      ])
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `deskflow-resolution-report-${reportFrom}-to-${reportTo}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   // ==================== Render ====================
@@ -258,21 +362,91 @@ function App() {
         <main className="workspace">
           <section className="workspace-heading">
             <div>
-              <p className="eyebrow">{isAdmin ? 'SUPPORT WORKSPACE' : 'MY WORKSPACE'}</p>
-              <h1>{isAdmin ? 'Support overview' : `Hello, ${session.user.name?.split(' ')[0] || 'there'}.`}</h1>
-              <p>{isAdmin ? 'Here is what your team is working on today.' : 'Your requests, all in one place.'}</p>
+              <p className="eyebrow">{isAdmin ? (workspaceView === 'report' ? 'SUPPORT INSIGHTS' : 'SUPPORT WORKSPACE') : 'MY WORKSPACE'}</p>
+              <h1>{isAdmin ? (workspaceView === 'report' ? 'Resolution report' : 'Support overview') : `Hello, ${session.user.name?.split(' ')[0] || 'there'}.`}</h1>
+              <p>{isAdmin ? (workspaceView === 'report' ? 'See what your team resolved and how long it took.' : 'Here is what your team is working on today.') : 'Your requests, all in one place.'}</p>
             </div>
-            <span className={`role-badge ${isAdmin ? 'role-admin' : ''}`}><span className="status-dot" />{isAdmin ? 'Administrator' : 'Employee'}</span>
+            <div className="workspace-heading-actions">
+              {isAdmin && (
+                <nav className="workspace-nav" aria-label="Support workspace">
+                  <button type="button" className={workspaceView === 'tickets' ? 'active' : ''} aria-current={workspaceView === 'tickets' ? 'page' : undefined} onClick={() => setWorkspaceView('tickets')}>Tickets</button>
+                  <button type="button" className={workspaceView === 'report' ? 'active' : ''} aria-current={workspaceView === 'report' ? 'page' : undefined} onClick={() => setWorkspaceView('report')}>Reports</button>
+                </nav>
+              )}
+              <span className={`role-badge ${isAdmin ? 'role-admin' : ''}`}><span className="status-dot" />{isAdmin ? 'Administrator' : 'Employee'}</span>
+            </div>
           </section>
 
-          <section className="stats-grid" aria-label="Request summary">
-            <article className="stat-card"><span className="stat-label">TOTAL REQUESTS</span><strong>{tickets.length}</strong><span className="stat-note">Across your workspace</span></article>
-            <article className="stat-card stat-open"><span className="stat-label">OPEN</span><strong>{ticketCounts.open}</strong><span className="stat-note">Waiting for support</span></article>
-            <article className="stat-card stat-progress"><span className="stat-label">IN PROGRESS</span><strong>{ticketCounts.inProgress}</strong><span className="stat-note">Being worked on</span></article>
-            <article className="stat-card stat-resolved"><span className="stat-label">RESOLVED</span><strong>{ticketCounts.resolved}</strong><span className="stat-note">Successfully completed</span></article>
-          </section>
+          {isAdmin && workspaceView === 'report' ? (
+            <section className="resolution-report">
+              <div className="card report-filters">
+                <div>
+                  <div className="card-kicker">CLOSURE PERIOD</div>
+                  <h2>Choose a date range</h2>
+                  <p className="muted">Tickets are included by the date they were resolved.</p>
+                </div>
+                <div className="report-date-fields">
+                  <label>From<input type="date" value={reportFrom} max={reportTo} onChange={(event) => setReportFrom(event.target.value)} /></label>
+                  <span className="date-range-separator" aria-hidden="true">→</span>
+                  <label>To<input type="date" value={reportTo} min={reportFrom} onChange={(event) => setReportTo(event.target.value)} /></label>
+                </div>
+              </div>
 
-          <div className={`dashboard-grid ${isAdmin ? 'admin-grid' : ''}`}>
+              {reportError && <div className="alert alert-error" role="alert">{reportError}</div>}
+
+              {reportLoading && !resolutionReport ? (
+                <div className="card report-empty"><span className="loading-mark" /><p>Preparing your resolution report…</p></div>
+              ) : resolutionReport ? (
+                <>
+                  <section className="report-summary" aria-label="Resolution report summary">
+                    <article className="stat-card stat-resolved"><span className="stat-label">TICKETS CLOSED</span><strong>{resolutionReport.total}</strong><span className="stat-note">{reportFrom} to {reportTo}</span></article>
+                    <article className="stat-card stat-progress"><span className="stat-label">AVERAGE RESOLUTION</span><strong>{resolutionReport.averageResolutionSeconds === null ? '—' : formatDuration(resolutionReport.averageResolutionSeconds)}</strong><span className="stat-note">Elapsed calendar time</span></article>
+                    <article className="stat-card"><span className="stat-label">MEDIAN RESOLUTION</span><strong>{resolutionReport.medianResolutionSeconds === null ? '—' : formatDuration(resolutionReport.medianResolutionSeconds)}</strong><span className="stat-note">Middle resolution time</span></article>
+                  </section>
+
+                  <section className="card report-results">
+                    <div className="section-heading">
+                      <div><div className="card-kicker">RESOLVED REQUESTS</div><h2>Closure details</h2></div>
+                      <button type="button" className="export-button" disabled={!resolutionReport.total} onClick={downloadReport}><span aria-hidden="true">↓</span> Export CSV</button>
+                    </div>
+                    {resolutionReport.total ? (
+                      <div className="report-table-wrap">
+                        <table className="report-table">
+                          <thead><tr><th>Request</th><th>Requester</th><th>Priority</th><th>Resolved</th><th>Time to resolve</th></tr></thead>
+                          <tbody>
+                            {resolutionReport.resolutions.map((resolution) => (
+                              <tr key={resolution.id}>
+                                <td><strong>{resolution.ticket.title}</strong><span className="report-ticket-id">DF-{resolution.ticket.id.slice(-6).toUpperCase()}</span></td>
+                                <td>{resolution.ticket.author.name}</td>
+                                <td><span className={`priority-label priority-text-${resolution.ticket.priority.toLowerCase()}`}>{resolution.ticket.priority}</span></td>
+                                <td>{new Date(resolution.resolvedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                                <td><strong>{formatDuration(resolution.resolutionSeconds)}</strong></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="empty-state report-no-results">
+                        <span className="empty-icon" aria-hidden="true">✓</span>
+                        <h3>No tickets were closed in this period</h3>
+                        <p>Try a different date range. New resolutions will appear here automatically.</p>
+                      </div>
+                    )}
+                    <p className="report-footnote">Resolution time is measured from ticket creation to each time it was marked Resolved. Older resolved tickets without recorded closure history are not included.</p>
+                  </section>
+                </>
+              ) : null}
+            </section>
+          ) : (
+            <>
+              <section className="stats-grid" aria-label="Request summary">
+                <article className="stat-card"><span className="stat-label">TOTAL REQUESTS</span><strong>{tickets.length}</strong><span className="stat-note">Across your workspace</span></article>
+                <article className="stat-card stat-open"><span className="stat-label">OPEN</span><strong>{ticketCounts.open}</strong><span className="stat-note">Waiting for support</span></article>
+                <article className="stat-card stat-progress"><span className="stat-label">IN PROGRESS</span><strong>{ticketCounts.inProgress}</strong><span className="stat-note">Being worked on</span></article>
+                <article className="stat-card stat-resolved"><span className="stat-label">RESOLVED</span><strong>{ticketCounts.resolved}</strong><span className="stat-note">Successfully completed</span></article>
+              </section>
+              <div className={`dashboard-grid ${isAdmin ? 'admin-grid' : ''}`}>
             {!isAdmin && (
               <section className="card request-card">
                 <div className="card-kicker">NEED A HAND?</div>
@@ -357,7 +531,9 @@ function App() {
                 </div>
               )}
             </section>
-          </div>
+              </div>
+            </>
+          )}
           <footer className="workspace-footer"><span>DeskFlow</span><span>Good support keeps work flowing.</span></footer>
         </main>
       )}

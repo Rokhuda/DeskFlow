@@ -148,16 +148,27 @@ async function seedDemoTickets(employee) {
         status: 'Open',
         authorId: employee.id,
         createdAt: new Date(now - 1000 * 60 * 60 * 26)
-      },
-      {
-        title: 'Request access to the design drive',
-        description: 'I need read access to the shared design folder for the upcoming project handoff.',
-        priority: 'Low',
-        status: 'Resolved',
-        authorId: employee.id,
-        createdAt: new Date(now - 1000 * 60 * 60 * 72)
       }
     ]
+  });
+
+  const createdAt = new Date(now - 1000 * 60 * 60 * 72);
+  const resolvedAt = new Date(now - 1000 * 60 * 60 * 48);
+  await prisma.ticket.create({
+    data: {
+      title: 'Request access to the design drive',
+      description: 'I need read access to the shared design folder for the upcoming project handoff.',
+      priority: 'Low',
+      status: 'Resolved',
+      authorId: employee.id,
+      createdAt,
+      resolutions: {
+        create: {
+          resolvedAt,
+          resolutionSeconds: Math.round((resolvedAt.getTime() - createdAt.getTime()) / 1000)
+        }
+      }
+    }
   });
 }
 
@@ -265,6 +276,52 @@ app.get('/api/tickets', authenticate, async (req, res) => {
   res.json(tickets);
 });
 
+app.get('/api/reports/resolutions', authenticate, authorizeRole('Admin'), async (req, res) => {
+  const { from, to } = req.query;
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const parseDate = (value) => {
+    if (typeof value !== 'string' || !datePattern.test(value)) {
+      return null;
+    }
+
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : date;
+  };
+  const fromDate = parseDate(from);
+  const toDate = parseDate(to);
+
+  if (!fromDate || !toDate || fromDate > toDate) {
+    return res.status(400).json({ error: 'Provide a valid date range with from on or before to' });
+  }
+
+  const toExclusive = new Date(toDate);
+  toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+
+  const resolutions = await prisma.ticketResolution.findMany({
+    where: { resolvedAt: { gte: fromDate, lt: toExclusive } },
+    include: { ticket: { include: { author: { select: { name: true } } } } },
+    orderBy: { resolvedAt: 'desc' }
+  });
+  const durations = resolutions.map((resolution) => resolution.resolutionSeconds).sort((a, b) => a - b);
+  const middle = Math.floor(durations.length / 2);
+  const medianResolutionSeconds = durations.length === 0
+    ? null
+    : durations.length % 2 === 0
+      ? Math.round((durations[middle - 1] + durations[middle]) / 2)
+      : durations[middle];
+
+  res.json({
+    from,
+    to,
+    total: resolutions.length,
+    averageResolutionSeconds: durations.length
+      ? Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length)
+      : null,
+    medianResolutionSeconds,
+    resolutions
+  });
+});
+
 /**
  * PUT /api/tickets/:id
  * Update ticket status (Admins only)
@@ -282,11 +339,32 @@ app.put('/api/tickets/:id', authenticate, authorizeRole('Admin'), async (req, re
     return res.status(400).json({ error: 'Status must be Open, InProgress, or Resolved' });
   }
 
-  const ticket = await prisma.ticket.update({
-    where: { id: req.params.id },
-    data: { status },
-    include: { author: true }
+  const ticket = await prisma.$transaction(async (transaction) => {
+    const existing = await transaction.ticket.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return null;
+    }
+
+    const updated = await transaction.ticket.update({
+      where: { id: req.params.id },
+      data: { status },
+      include: { author: true }
+    });
+
+    if (status === 'Resolved' && existing.status !== 'Resolved') {
+      const resolvedAt = new Date();
+      const resolutionSeconds = Math.max(0, Math.round((resolvedAt.getTime() - existing.createdAt.getTime()) / 1000));
+      await transaction.ticketResolution.create({
+        data: { ticketId: existing.id, resolvedAt, resolutionSeconds }
+      });
+    }
+
+    return updated;
   });
+
+  if (!ticket) {
+    return res.status(404).json({ error: 'Ticket not found' });
+  }
 
   res.json(ticket);
 });

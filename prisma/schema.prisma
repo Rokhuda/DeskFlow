@@ -18,14 +18,25 @@ model User {
 }
 
 model Ticket {
-  id          String   @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   description String
   priority    Priority
-  status      Status   @default(Open)
-  createdAt   DateTime @default(now())
+  status      Status             @default(Open)
+  createdAt   DateTime           @default(now())
   authorId    String
-  author      User     @relation(fields: [authorId], references: [id])
+  author      User               @relation(fields: [authorId], references: [id])
+  resolutions TicketResolution[]
+}
+
+model TicketResolution {
+  id                String   @id @default(cuid())
+  ticketId          String
+  resolvedAt        DateTime @default(now())
+  resolutionSeconds Int
+  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt])
 }
 
 enum Role {

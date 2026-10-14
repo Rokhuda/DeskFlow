@@ -669,6 +669,40 @@ textarea {
   font-size: 0.92rem;
 }
 
+.workspace-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.workspace-nav {
+  display: flex;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.workspace-nav button {
+  border-radius: 0.5rem;
+  padding: 8px 12px;
+  color: #667085;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.workspace-nav button:hover {
+  transform: none;
+  color: var(--navy);
+}
+
+.workspace-nav button.active {
+  color: var(--blue);
+  background: #eef2ff;
+}
+
 .role-badge {
   display: inline-flex;
   align-items: center;
@@ -1247,5 +1281,215 @@ textarea {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+.resolution-report {
+  display: grid;
+  gap: 16px;
+}
+
+.report-filters {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 23px 25px;
+}
+
+.report-filters h2 {
+  margin: 7px 0 3px;
+  color: var(--navy);
+  font-size: 1.12rem;
+}
+
+.report-filters .muted {
+  margin: 0;
+  font-size: 0.79rem;
+}
+
+.report-date-fields {
+  display: flex;
+  align-items: end;
+  gap: 11px;
+}
+
+.report-date-fields label {
+  min-width: 166px;
+  font-size: 0.75rem;
+}
+
+.report-date-fields input {
+  padding: 0.65rem 0.7rem;
+  font-size: 0.81rem;
+}
+
+.date-range-separator {
+  padding: 0 0 11px;
+  color: #98a2b3;
+}
+
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.report-summary .stat-card {
+  min-height: 116px;
+}
+
+.report-results {
+  min-width: 0;
+  padding: 23px 25px;
+}
+
+.report-results .section-heading {
+  margin-bottom: 13px;
+}
+
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  padding: 9px 12px;
+  color: #475467;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.export-button:hover:not(:disabled) {
+  transform: none;
+  border-color: #c8d2f5;
+  color: var(--blue);
+  background: #fafbff;
+}
+
+.export-button:disabled {
+  cursor: not-allowed;
+}
+
+.export-button span {
+  color: var(--blue);
+  font-size: 1rem;
+}
+
+.report-table-wrap {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.report-table th {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 11px;
+  color: #8993a3;
+  font-size: 0.64rem;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.report-table td {
+  border-bottom: 1px solid #edf0f4;
+  padding: 15px 11px;
+  color: #667085;
+  font-size: 0.77rem;
+  white-space: nowrap;
+}
+
+.report-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.report-table td:first-child {
+  min-width: 220px;
+  white-space: normal;
+}
+
+.report-table td:first-child strong,
+.report-ticket-id {
+  display: block;
+}
+
+.report-table td:first-child strong {
+  color: #28364b;
+  font-size: 0.79rem;
+  font-weight: 650;
+}
+
+.report-ticket-id {
+  margin-top: 4px;
+  color: #98a2b3;
+  font-size: 0.66rem;
+}
+
+.report-table td:last-child strong {
+  color: var(--navy);
+  font-weight: 650;
+}
+
+.report-footnote {
+  margin: 14px 0 0;
+  border-top: 1px solid #edf0f4;
+  padding-top: 12px;
+  color: #8a94a5;
+  font-size: 0.71rem;
+  line-height: 1.55;
+}
+
+.report-empty {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.report-empty p {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+@media (max-width: 720px) {
+  .workspace-heading-actions {
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .report-filters {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 17px;
+    padding: 21px 17px;
+  }
+
+  .report-date-fields label {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .report-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .report-summary .stat-card {
+    min-height: 100px;
+  }
+
+  .report-results {
+    padding: 20px 14px;
+  }
+
+  .report-table {
+    min-width: 730px;
   }
 }

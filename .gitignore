@@ -9,7 +9,6 @@ node_modules/
 
 # Prisma
 prisma/dev.db
-prisma/migrations/
 
 # Build and logs
 dist/
