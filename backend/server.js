@@ -20,7 +20,12 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const prisma = new PrismaClient();
 const app = express();
 const port = process.env.PORT || 5000;
-const jwtSecret = process.env.JWT_SECRET || 'deskflow-secret';
+const isProduction = process.env.NODE_ENV === 'production';
+const jwtSecret = process.env.JWT_SECRET || (isProduction ? '' : 'deskflow-secret');
+
+if (isProduction && jwtSecret.length < 32) {
+  throw new Error('Set JWT_SECRET to a random value of at least 32 characters in production');
+}
 
 // Enable CORS for cross-origin requests and JSON parsing middleware
 app.use(cors());
@@ -121,7 +126,7 @@ async function seedUsers() {
 }
 
 async function seedDemoTickets(employee) {
-  if (process.env.NODE_ENV === 'production') {
+  if (isProduction) {
     return;
   }
 

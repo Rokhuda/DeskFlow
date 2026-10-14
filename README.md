@@ -55,10 +55,41 @@ Closure history begins when this feature is installed. Older resolved tickets wi
 
 ## Deployment
 
-Netlify can host the built React frontend. Netlify Functions can also run an API, but this Express server is not currently adapted or configured for serverless deployment. The simplest Netlify setup is to host the API on a Node application host and use a managed database, then configure the frontend API URL and backend CORS for the deployed site.
+Railway is the current deployment target. It can run the Express server and built React app as one service. For this demo, SQLite must live on a Railway volume, and the service must run as a single replica.
 
-For a small demo, a Node application host such as Render or Railway is a more direct fit because it can run the API and serve the built frontend together. SQLite needs persistent disk storage and a single application instance; for multiple instances or production use, move to managed PostgreSQL.
+1. Push the project to GitHub and create a Railway project from the repository.
+2. In the service settings, set the root directory to `/`.
+3. Set the build command to:
 
-This repository does **not** currently include a verified Netlify or one-click cloud deployment configuration. Treat the existing Docker/Kubernetes files as unverified legacy scaffolding. Before exposing the app publicly, remove demo-account seeding from production, replace plain-text demo passwords with secure password hashing and real account management, and set a strong `JWT_SECRET`. Do not put real user data in the demo deployment.
+   ```sh
+   npm --prefix frontend ci && npm run build
+   ```
+
+   Railway installs the root dependencies and generates the Prisma client during installation.
+
+4. Set the start command to:
+
+   ```sh
+   npm run start:deploy
+   ```
+
+   This applies pending Prisma migrations at startup, then starts the API and serves the frontend.
+
+5. Add a Railway volume to this service and set its mount path to `/data`.
+6. Set these service variables:
+
+   | Variable | Value |
+   | --- | --- |
+   | `NODE_ENV` | `production` |
+   | `DATABASE_URL` | `file:/data/deskflow.db` |
+   | `JWT_SECRET` | A unique random secret of at least 32 characters |
+
+   Generate a secret locally with `openssl rand -base64 48`; paste it directly into Railway's variable settings, not into Git or chat.
+
+7. Generate a Railway public domain and deploy. Verify the service at `/api/health`, then sign in using the demo buttons.
+
+The volume is required because Railway's application filesystem is temporary. SQLite on one volume is suitable for a portfolio/demo deployment, not multiple replicas or production workloads. The app seeds publicly known demo accounts with a shared password and does not hash passwords, so **do not use real or private user data**. Production also refuses to start with a missing or short JWT secret.
+
+Netlify can host a static frontend, but this Express app would need to be hosted separately or adapted to serverless functions. Railway is simpler for the current one-service design.
 
 To build the frontend locally, run `npm run build`.
