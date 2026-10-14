@@ -10,6 +10,14 @@ Run the app locally and open [http://localhost:5173](http://localhost:5173). The
 - **Admin:** review all requests and move them between Open, In Progress, and Resolved.
 - **Demo password:** `password123`
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/sign-in.jpg" width="32%" alt="DeskFlow sign-in screen" />
+  <img src="screenshots/employee-dashboard.jpg" width="32%" alt="DeskFlow employee dashboard with a request form and sample tickets" />
+  <img src="screenshots/admin-dashboard.jpg" width="32%" alt="DeskFlow administrator dashboard and support queue" />
+</p>
+
 ## Run locally
 
 Prerequisites: Node.js 20+ and npm.
